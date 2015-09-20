@@ -1,0 +1,4 @@
+ide-drive.o
+AddBootNode.o
+rdblib.o
+
