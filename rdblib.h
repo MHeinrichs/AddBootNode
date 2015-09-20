@@ -28,7 +28,7 @@
         #define IOHT_FILE   1
         #define IOHT_DEVICE 2
 
-        #define MAXBLK   4096
+        #define MAXBLK   128
         #define BLK_SIZE 512
 
 /*----------------------------------------------------------------------------*/
