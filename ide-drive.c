@@ -9,12 +9,11 @@ BYTE_WIDE lastHead=0xff;
 
 
 BYTE_WIDE delayCIA(){ //one CIA acces: 1.4 micro sec
-    return(CIA_TST & CIA_TST);
+   return(CIA_TST);
 }
 
 WORD_WIDE delayShort(){
-    return (CHP_TST & CHP_TST);
-
+    return (CHP_TST);
 }
 
 
@@ -33,14 +32,16 @@ BYTE_WIDE setHead(BYTE_WIDE head){
 
 void IDESoftReset(){
     int time;
-
     TF_DEVICE_CONTROL=8+nIEN+SRST;   /* Soft Reset Both drives + No Interrupt Request*/
+    delayShort();
     for (time=0;time<16;++time){
         delayCIA();
-    }
+    } 
     TF_DEVICE_CONTROL=8+nIEN;        /* end Reset, recover 200ms */
+    delayShort();
     for (time=0;time<175;++time){
         delayCIA();
+
     }
 }
 
@@ -65,6 +66,7 @@ int DriveStatus(BYTE_WIDE drive, WORD_WIDE* buf){
 
 
     erroria=setHead(drive); //LBA access!
+    delayShort();
     if (erroria&ERR){
         return READ_ERROR; //error reading
     }
@@ -72,13 +74,14 @@ int DriveStatus(BYTE_WIDE drive, WORD_WIDE* buf){
     //delayCIA();
     i=20000;
     TF_COMMAND=ATA_IDENTIFY_DRIVE;
-    //delayShort();
+    delayShort();
 
     erroria=TF_ALTERNATE_STATUS;
+    delayShort();
     while (erroria&BSY!=0&&i>0 )
     {
         erroria = TF_ALTERNATE_STATUS;
-        //delayShort();
+        delayShort();
         i--;
     };
 
@@ -96,10 +99,11 @@ int DriveStatus(BYTE_WIDE drive, WORD_WIDE* buf){
         TF_COMMAND=ATA_IDENTIFY_PACKET_DEVICE;
         i=20000;
         erroria=TF_ALTERNATE_STATUS;
+	    delayShort();
         while (erroria&BSY!=0&&i>0 )
         {
             erroria = TF_ALTERNATE_STATUS;
-            //delayShort();
+            delayShort();
             i--;
         };
 
@@ -144,10 +148,11 @@ int DriveType(WORD_WIDE* buf){
         TF_COMMAND=ATA_IDENTIFY_PACKET_DEVICE;
         i=20000;
         erroria=TF_ALTERNATE_STATUS;
-        while (erroria&BSY!=0&&i>0 )
+ 	    delayShort();
+    	while (erroria&BSY!=0&&i>0 )
         {
             erroria = TF_ALTERNATE_STATUS;
-            //delayShort();
+            delayShort();
             i--;
         };
 

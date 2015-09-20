@@ -107,12 +107,15 @@ int AddBootNodes(char* device, int devicenum, char* outfile, long test){
         isKick13 = ExpansionBase->lib_Version <36;
         isFFSLoaded= !isKick13;
         rc=1;
+
         if(outfile){
             rc = writeMountlist(blocklist, isKick13, device, devicenum, outfile);
         }
         else{
+         
             //iterate over blocks and add partitions
             for(i=0;blocklist[i] && rc!=0 ;++i){
+
                 if(((struct RigidDiskBlock *)(blocklist[i]))->rdb_ID == IDNAME_PARTITION){
                     pb = (struct *PartitionBlock)blocklist[i];
 
@@ -130,7 +133,7 @@ int AddBootNodes(char* device, int devicenum, char* outfile, long test){
                     CopyMemQuick(pb->pb_Environment, &(paramPkt[4]),17*sizeof(ULONG));
 
                     if((node = (APTR)MakeDosNode( paramPkt ))){
-                        //only add OFS Partitions to Kick 1.3, if FFS is not loaded!
+			//only add OFS Partitions to Kick 1.3, if FFS is not loaded!
                         if(paramPkt[20]<0x444F5301 || (paramPkt[20]==0x444F5301 && isFFSLoaded) || !isKick13){
                             if(isKick13 && paramPkt[20]>=0x444F5301){
                                 printf("NO support for FFS or other partitions in kick 1.3!\nPlease mount manualy: %b\n",node->dn_Name+1);
@@ -139,8 +142,7 @@ int AddBootNodes(char* device, int devicenum, char* outfile, long test){
                             else{
                                 if(test){
                                     printf("Found partition %s with start cyl %ld and end cyl %ld\n",name,pb->pb_Environment[DE_LOWCYL],pb->pb_Environment[DE_UPPERCYL]);
-                                }
-                                else{
+                                } else{
                                     rc = AddDosNode( 0, ADNF_STARTPROC, node);
                                 }
                             }
@@ -222,7 +224,8 @@ main(int argc, char *argv[])
     int driveStatus;
     int i;
     int minU=0, maxU=10, step=10;
-    int defaultDevice;
+    int defaultDevice = 0;
+    int numOfDevices=0;
     unsigned short int buf[256];
     int *flagUseDrive;
     //fill default values
@@ -241,46 +244,51 @@ main(int argc, char *argv[])
             args.file=argv[1];
         }
     }
+    if((*args.stepUnit)<=0) //sanity check
+    	(*args.stepUnit)=1;
     //printf("Dev: %s MinU:%d MaxU:%d File:%s step:%d info:%d force:%d\n",args.device, (*args.minUnit), (*args.maxUnit),args.file,(*args.stepUnit),args.info,args.force);
-
-    flagUseDrive = AllocMem(((*args.maxUnit)+1) * sizeof(int),MEMF_CLEAR);
+    
+    numOfDevices = ((*args.maxUnit)/(*args.stepUnit)) + 1;
+    flagUseDrive = AllocMem(numOfDevices*sizeof(int),MEMF_CLEAR);
+    
     if (flagUseDrive){
         //are we using the default device?
         defaultDevice= isIDEDevice(args.device);
-        for(i=(*args.minUnit); i<=(*args.maxUnit); i+=(*args.stepUnit)){
+        for(i=(*args.minUnit)/(*args.stepUnit); i<numOfDevices; ++i){
             //do presence check only on the default device
             if(defaultDevice && args.info){
                 switch(i){
                     case 0:
                         driveStatus = DriveStatus(DRV0, buf);
                         break;
-                    case 10:
+                    case 1:
                         driveStatus = DriveStatus(DRV1, buf);
                         break;
                 }
                 flagUseDrive[i]=driveStatus==SUCCESS||args.force;
                 //print info
+
                 if(args.info){
                     args.test=args.info;
                     switch(driveStatus){
                         case SUCCESS:
-                            printf("Device %s drive %d LUN %d is a ATA-DRIVE\n",args.device, i%10, i/10);
+                            printf("Device %s drive %d is a ATA-DRIVE\n",args.device, i);
                             PrintDriveInformation(buf);
                             break;
                         case TIME_OUT:
-                            printf("Device %s drive %d LUN %d not present\n",args.device, i%10, i/10);
+                            printf("Device %s drive %d not present\n",args.device, i);
                             break;
                         case DATA_PENDING:
-                            printf("Device %s drive %d LUN %d has data pending.\n",args.device, i%10, i/10);
+                            printf("Device %s drive %d has data pending.\n",args.device, i);
                             break;
                         case READ_ERROR:
-                            printf("Device %s drive %d LUN %d has a read error\n",args.device, i%10, i/10);
+                            printf("Device %s drive %d has a read error\n",args.device, i);
                             break;
                         case WRITE_ERROR:
-                            printf("Device %s drive %d LUN %d has a write error\n",args.device, i%10, i/10);
+                            printf("Device %s drive %d has a write error\n",args.device, i);
                             break;
                         case ATAPI_DRIVE:
-                            printf("Device %s drive %d LUN %d is a ATAPI-DRIVE (CD/DVD-ROM)\n",args.device, i%10, i/10);
+                            printf("Device %s drive %d is a ATAPI-DRIVE (CD/DVD-ROM)\n",args.device, i);
                             PrintDriveInformation(buf);
                             break;
                     }
@@ -290,19 +298,21 @@ main(int argc, char *argv[])
                 flagUseDrive[i]=1;
             }
         }
+
         if(defaultDevice)
             IDESoftReset();
-            for(i=(*args.minUnit); i<=(*args.maxUnit); i+=(*args.stepUnit)){
 
+        for(i=(*args.minUnit)/(*args.stepUnit); i<numOfDevices; ++i){
             if(flagUseDrive[i]){
-                driveStatus=AddBootNodes(args.device,i,args.file,args.test);
+                driveStatus=AddBootNodes(args.device,i*(*args.stepUnit),args.file,args.test);
                 if(driveStatus<returnCode){
                     returnCode=driveStatus;
                 }
             }
         }
-        FreeMem(flagUseDrive,(*args.maxUnit)+1);
+        FreeMem(flagUseDrive,numOfDevices*sizeof(int));
     }
+
     if(rdargs)
         FreeArgs (rdargs);
     exit( returnCode  );
