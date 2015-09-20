@@ -1,3 +1,7 @@
 IF EXISTS "DF0:c/AddHD"
  Copy AddHd DF0:c/AddHD
 ENDIF
+
+
+Copy AddHd C:AddHD
+

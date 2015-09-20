@@ -7,24 +7,27 @@
 
 struct MyUnit {
    struct   Unit mdu_Unit;
-   ULONG    mdu_UnitNum;
-   UBYTE    mdu_SigBit;
-   UBYTE    mdu_pad;
    APTR     mdu_Device;
-   ULONG    mdu_drv_type;        /*see bellow for possible values*/
-   ULONG    mdu_firstcall;       /*was drive called yet?*/
-   ULONG    mdu_auto;            /*get drive parameters automatic? = TRUE*/
-   ULONG    mdu_lba;             /*use LBA? For ATAPI always TRUE*/
+   ULONG    mdu_UnitNum;
+   ULONG    mdu_change_cnt;      /*count of disk changes - only for ATAPI*/
+   ULONG    mdu_no_disk;         /*isn't disk inserted? - only for ATAPI*/
+   ULONG    mdu_numlba48;        /*only for ATA with LBA=LBA48_ACCESS*/
    ULONG    mdu_sectors_per_track;  /*only for ATA*/
    ULONG    mdu_heads;           /*only for ATA*/
    ULONG    mdu_cylinders;       /*only for ATA*/
-   ULONG    mdu_numlba;          /*only for ATA with LBA=TRUE*/
-   char     mdu_ser_num[22];     /*serial number*/
+   ULONG    mdu_numlba;          /*only for ATA with LBA=LBA28_ACCESS or LBA48_ACCESS*/
+   char     mdu_ser_num[24];     /*serial number*/
    char     mdu_firm_rev[48];    /*firware revision*/
    char     mdu_model_num[56];   /*model number*/
-   ULONG    mdu_motor;           /*motor status*/
-   ULONG    mdu_change_cnt;      /*count of disk changes - only for ATAPI*/
-   ULONG    mdu_no_disk;         /*isn't disk inserted? - only for ATAPI*/
+   UWORD    mdu_drv_type;        /*see bellow for possible values*/
+   UWORD    mdu_firstcall;       /*was drive called yet?*/
+   UWORD    mdu_auto;            /*get drive parameters automatic? = TRUE*/
+   UWORD    mdu_lba;             /*use LBA? For ATAPI always TRUE*/
+   UWORD    mdu_motor;           /*motor status*/
+   UBYTE    mdu_SigBit;
+   UBYTE    mdu_SectorBuffer;	 //max number of sectors per transfer block
+   UBYTE    mdu_actSectorCount;	 //actual number of sectors per transfer block
+   UBYTE    mdu_pad;
 };
 
 /*drive types*/

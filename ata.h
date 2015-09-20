@@ -16,7 +16,7 @@
 #define DWF    bit5 /*drive write fault*/
 #define DF     DWF
 #define DSC    bit4 /*drive seek complete*/
-#define SKC    DSC  
+#define SKC    DSC
 #define DRQ    bit3 /*data request*/
 #define CORR   bit2 /*corrected data*/
 #define IDX    bit1 /*index*/
