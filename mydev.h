@@ -17,8 +17,8 @@ struct MyUnit {
    ULONG    mdu_cylinders;       /*only for ATA*/
    ULONG    mdu_numlba;          /*only for ATA with LBA=LBA28_ACCESS or LBA48_ACCESS*/
    char     mdu_ser_num[24];     /*serial number*/
-   char     mdu_firm_rev[48];    /*firware revision*/
-   char     mdu_model_num[56];   /*model number*/
+   char     mdu_firm_rev[12];    /*firware revision*/
+   char     mdu_model_num[44];   /*model number*/
    UWORD    mdu_drv_type;        /*see bellow for possible values*/
    UWORD    mdu_firstcall;       /*was drive called yet?*/
    UWORD    mdu_auto;            /*get drive parameters automatic? = TRUE*/

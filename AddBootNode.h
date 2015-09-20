@@ -19,4 +19,5 @@ int writeMountlist(APTR *blocklist, int isKick13, char* device, int devicenum, c
 
 int AddBootNodes(char* device, int device, char* outfile, long test);
 
+UWORD GetDriveInfo(char* device, int devicenum, int verbose);
 

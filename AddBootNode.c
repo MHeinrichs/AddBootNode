@@ -1,7 +1,5 @@
 #include "AddBootNode.h"
 #include "mydev.h"
-#include "ide-drive.h"
-#include "ata.h"
 
 int writeMountlist(APTR *blocklist, int isKick13, char* device, int devicenum, char* fileName){
     long i,j;
@@ -55,6 +53,86 @@ int writeMountlist(APTR *blocklist, int isKick13, char* device, int devicenum, c
     return 0;
 }
 
+UWORD GetDriveInfo(char* device, int devicenum, int verbose){
+    struct iohandle *harddisk;
+    struct MyUnit *myUnit=NULL;
+	UWORD retVal = ATA_DRV;
+    char* ref="ide.device";
+	ULONG capacity;
+	//check for IDE.device all others are treated as ATA_DRV
+	if(stricmp(device,ref)==0 && verbose){
+		//OK, ide.device! Lets go checking!	    
+	    //get the memory
+	    harddisk = open_device(device, devicenum);
+	
+		//got the handle?
+	    if(harddisk  ){
+	    	//get a pointer to the unit-info struct
+		    myUnit = (struct MyUnit *) ((struct IOStdReq *)harddisk->hand.req)->io_Unit;
+		    //store return value
+			retVal = myUnit->mdu_drv_type;
+		    if(verbose!=0 ){ //check if verbose is given
+		    	printf("Device %s\tUnit%d:\n",device,devicenum);
+		    	switch(retVal){
+		    		case ATA_DRV: printf("Type: ATA Harddisk\n");break;
+		    		case ATAPI_DRV: printf("Type: ATAPI-CD/DVD-ROM\n");break;
+		    		case UNKNOWN_DRV: printf("Type: Unknownn");break;
+		    		case SATA_DRV: printf("Type: SATA Harddisk\n");break;
+		    		case SATAPI_DRV: printf("Type: SATAPI-CD/DVD-ROM\n");break;
+		    	}
+		    	printf("Model number: %s.\n",myUnit->mdu_model_num);
+		    	printf("Firmware revision: %s.\n",myUnit->mdu_firm_rev);
+		    	printf("Serial: %s.\n",myUnit->mdu_ser_num);
+				if(retVal==ATA_DRV || retVal==SATA_DRV ){
+					switch(	myUnit->mdu_lba){
+						case CHS_ACCESS: 
+							printf("Supports only cylinder-head-sector (CHS) access.\n");
+							break;	
+						case LBA28_ACCESS: 							
+							printf("Supports LBA28 access.\n");
+							printf("Number of blocks %lu\n",myUnit->mdu_numlba);
+							break;
+						case LBA48_ACCESS: 							
+							printf("Supports LBA48 access. (not supported jet!)\n");
+							printf("Number of 48LBA-blocks %lu\n",myUnit->mdu_numlba48);
+							printf("Number of 28LBA-blocks %lu\n",myUnit->mdu_numlba);
+							break;
+					}		
+					printf(	"Cylinders: %lu Heads: %lu Sectors: %lu\n",
+							myUnit->mdu_cylinders,
+							myUnit->mdu_heads,
+							myUnit->mdu_sectors_per_track);
+					capacity = myUnit->mdu_cylinders*myUnit->mdu_heads*myUnit->mdu_sectors_per_track; //c*h*s = num of blocs, one block =512Byte 
+					capacity /=2; //blocks (512byte) to kb									
+					capacity /=1024; //to MB
+					//if(capacity >1024){
+					//	capacity /=1024; //to GB
+					//	printf(	"Capacity(GB): %lu\n",capacity);
+					//}
+					//else{
+						printf(	"Capacity(MB): %lu\n",capacity);
+					//}							
+
+				}	
+				if(retVal==ATAPI_DRV || retVal==SATAPI_DRV ){
+					printf("Disk present: %s\n",(myUnit->mdu_no_disk?"NO":"YES"));
+					printf("Motor status: %d\n",myUnit->mdu_motor);
+					printf("Number of LBA-blocks %lu\n",myUnit->mdu_numlba);					
+				}
+				printf("Max number of sectors per IO (NOT MAX TRAFSFER!): %d\n",myUnit->mdu_SectorBuffer);
+			}
+		    close_io(harddisk);
+	    }
+	    else if (verbose){
+			printf("could not access unit %2d on %s!\n",devicenum,device);
+			retVal = UNKNOWN_DRV;
+		}	    
+	}
+	else if (verbose){
+		printf("No info available for %s. Only ide.device supported!\n",device);
+	}
+	return retVal;
+}
 
 int AddBootNodes(char* device, int devicenum, char* outfile, long test){
     long rc =0, numPartAdded=0;
@@ -77,11 +155,6 @@ int AddBootNodes(char* device, int devicenum, char* outfile, long test){
     }
 
     myUnit = (struct MyUnit *) ((struct IOStdReq *)harddisk->hand.req)->io_Unit;
-
-    if(myUnit->mdu_drv_type!=ATA_DRV && myUnit->mdu_drv_type!=SATA_DRV ){ //add only harddisks. No CDROMS and Unknown
-        close_io(harddisk);
-        return 0;
-    }
 
     blocklist = AllocMem(MAXBLK * sizeof(APTR),MEMF_CLEAR);
     if(NULL == blocklist){
@@ -184,27 +257,6 @@ long isKick13(){
     return isKick13;
 }
 
-int isIDEDevice(char* in){
-    char* ref="ide.device";
-    int i, size;
-    //find sizes
-    size=0;
-    while(in[size]){
-        ++size;
-    }
-    i=0;
-    while(ref[i]){
-        ++i;
-    }
-    //same size?
-    if(i!=size) return 0;
-
-    for(i=0; i<size;++i){
-        if(ref[i]!=in[i]) break;
-    }
-    return i==size;
-}
-
 main(int argc, char *argv[])
 {
     struct RDArgs *rdargs=NULL;
@@ -215,28 +267,24 @@ main(int argc, char *argv[])
         char *file;
         long *stepUnit;
         long info;
-        long force;
         long test;
     } args = {
         0
     };
     int returnCode = 6;
-    int driveStatus;
-    int i;
+    int i, unit,driveStatus;
     int minU=0, maxU=10, step=10;
     int defaultDevice = 0;
     int numOfDevices=0;
-    unsigned short int buf[256];
-    int *flagUseDrive;
+    UWORD driveType = UNKNOWN_DRV;
     //fill default values
     args.device="ide.device";
     args.minUnit=&minU;
     args.maxUnit=&maxU;
     args.stepUnit=&step;
 
-    //printf("Dev: %s MinU:%d MaxU:%d File:%s step:%d info:%d force:%d\n",args.device, (*args.minUnit), (*args.maxUnit),args.file,(*args.stepUnit),args.info,args.force);
     if(!isKick13()){
-        rdargs = ReadArgs ("DEVICE/K,MINUNIT/K/N,MAXUNIT/K/N,FILE/K,STEP/K/N,DRIVEINFO/S,FORCE/S,TEST/S",(void *)&args,NULL);
+        rdargs = ReadArgs ("DEVICE/K,MINUNIT/K/N,MAXUNIT/K/N,FILE/K,STEP/K/N,DRIVEINFO/S,TEST/S",(void *)&args,NULL);
     }
     else{
         printf("Kick 1.3 mode! No command line parameters are evaluated except the first.\n First parameter is a file to save the mountlist.\n");
@@ -246,71 +294,20 @@ main(int argc, char *argv[])
     }
     if((*args.stepUnit)<=0) //sanity check
     	(*args.stepUnit)=1;
-    //printf("Dev: %s MinU:%d MaxU:%d File:%s step:%d info:%d force:%d\n",args.device, (*args.minUnit), (*args.maxUnit),args.file,(*args.stepUnit),args.info,args.force);
+    //printf("Dev: %s MinU:%d MaxU:%d File:%s step:%d info:%d Test:%d\n",args.device, (*args.minUnit), (*args.maxUnit),args.file,(*args.stepUnit),args.info,args.test);
     
     numOfDevices = ((*args.maxUnit)/(*args.stepUnit)) + 1;
-    flagUseDrive = AllocMem(numOfDevices*sizeof(int),MEMF_CLEAR);
-    
-    if (flagUseDrive){
-        //are we using the default device?
-        defaultDevice= isIDEDevice(args.device);
-        for(i=(*args.minUnit)/(*args.stepUnit); i<numOfDevices; ++i){
-            //do presence check only on the default device
-            if(defaultDevice && args.info){
-                switch(i){
-                    case 0:
-                        driveStatus = DriveStatus(DRV0, buf);
-                        break;
-                    case 1:
-                        driveStatus = DriveStatus(DRV1, buf);
-                        break;
-                }
-                flagUseDrive[i]=driveStatus==SUCCESS||args.force;
-                //print info
 
-                if(args.info){
-                    args.test=args.info;
-                    switch(driveStatus){
-                        case SUCCESS:
-                            printf("Device %s drive %d is a ATA-DRIVE\n",args.device, i);
-                            PrintDriveInformation(buf);
-                            break;
-                        case TIME_OUT:
-                            printf("Device %s drive %d not present\n",args.device, i);
-                            break;
-                        case DATA_PENDING:
-                            printf("Device %s drive %d has data pending.\n",args.device, i);
-                            break;
-                        case READ_ERROR:
-                            printf("Device %s drive %d has a read error\n",args.device, i);
-                            break;
-                        case WRITE_ERROR:
-                            printf("Device %s drive %d has a write error\n",args.device, i);
-                            break;
-                        case ATAPI_DRIVE:
-                            printf("Device %s drive %d is a ATAPI-DRIVE (CD/DVD-ROM)\n",args.device, i);
-                            PrintDriveInformation(buf);
-                            break;
-                    }
-                }
-            }
-            else{
-                flagUseDrive[i]=1;
-            }
-        }
-
-        if(defaultDevice)
-            IDESoftReset();
-
-        for(i=(*args.minUnit)/(*args.stepUnit); i<numOfDevices; ++i){
-            if(flagUseDrive[i]){
-                driveStatus=AddBootNodes(args.device,i*(*args.stepUnit),args.file,args.test);
-                if(driveStatus<returnCode){
-                    returnCode=driveStatus;
-                }
-            }
-        }
-        FreeMem(flagUseDrive,numOfDevices*sizeof(int));
+    for(i=(*args.minUnit)/(*args.stepUnit); i<numOfDevices; ++i){
+    	unit = i*(*args.stepUnit);
+	    //printf("Dev: %s unit:%d info:%d test:%d\n",args.device, unit, args.info,args.test);
+    	driveType = GetDriveInfo(args.device,unit,args.info); //this returns the drivetype for ide.device or ATA_DRV for any other device
+     	if(driveType==ATA_DRV || driveType==SATA_DRV ){ //add only harddisks. No CDROMS and Unknown   	
+	        driveStatus=AddBootNodes(args.device,unit,args.file,args.test);
+	        if(driveStatus<returnCode){
+	            returnCode=driveStatus;
+	        }
+	    }
     }
 
     if(rdargs)
