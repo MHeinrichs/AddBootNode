@@ -53,73 +53,146 @@ int writeMountlist(APTR *blocklist, int isKick13, char* device, int devicenum, c
     return 0;
 }
 
+UWORD printDeviceInfo(APTR *unit){
+	ULONG capacity;
+	struct MyUnit *myUnit = (struct MyUnit *) unit;
+	switch(myUnit->mdu_drv_type){
+		case ATA_DRV: printf("Type: ATA Harddisk\n");break;
+		case ATAPI_DRV: printf("Type: ATAPI-CD/DVD-ROM\n");break;
+		case UNKNOWN_DRV: printf("Type: Unknownn");break;
+		case SATA_DRV: printf("Type: SATA Harddisk\n");break;
+		case SATAPI_DRV: printf("Type: SATAPI-CD/DVD-ROM\n");break;
+	}
+	printf("Model number: %s.\n",myUnit->mdu_model_num);
+	printf("Firmware revision: %s.\n",myUnit->mdu_firm_rev);
+	printf("Serial: %s.\n",myUnit->mdu_ser_num);
+	if(myUnit->mdu_drv_type==ATA_DRV || myUnit->mdu_drv_type==SATA_DRV ){
+		switch(	myUnit->mdu_lba){
+			case CHS_ACCESS: 
+				printf("Supports only cylinder-head-sector (CHS) access.\n");
+				break;	
+			case LBA28_ACCESS: 							
+				printf("Supports LBA28 access.\n");
+				printf("Number of blocks %lu\n",myUnit->mdu_numlba);
+				break;
+			case LBA48_ACCESS: 							
+				printf("Supports LBA48 access. (not supported jet!)\n");
+				printf("Number of 48LBA-blocks %lu\n",myUnit->mdu_numlba48);
+				printf("Number of 28LBA-blocks %lu\n",myUnit->mdu_numlba);
+				break;
+		}		
+		printf(	"Cylinders: %lu Heads: %lu Sectors: %lu\n",
+				myUnit->mdu_cylinders,
+				myUnit->mdu_heads,
+				myUnit->mdu_sectors_per_track);
+		capacity = myUnit->mdu_cylinders*myUnit->mdu_heads*myUnit->mdu_sectors_per_track; //c*h*s = num of blocs, one block =512Byte 
+		capacity /=2; //blocks (512byte) to kb									
+		capacity /=1024; //to MB
+		//if(capacity >1024){
+		//	capacity /=1024; //to GB
+		//	printf(	"Capacity(GB): %lu\n",capacity);
+		//}
+		//else{
+			printf(	"Capacity(MB): %lu\n",capacity);
+		//}							
+
+	}	
+	if(myUnit->mdu_drv_type==ATAPI_DRV || myUnit->mdu_drv_type==SATAPI_DRV ){
+		printf("Disk present: %s\n",(myUnit->mdu_no_disk?"NO":"YES"));
+		printf("Motor status: %d\n",myUnit->mdu_motor);
+		printf("Number of LBA-blocks %lu\n",myUnit->mdu_numlba);					
+	}
+	printf("Max number of sectors per IO (NOT MAX TRAFSFER!): %d\n",myUnit->mdu_SectorBuffer);
+	return myUnit->mdu_drv_type;
+}
+
+UWORD printOldDeviceInfo(APTR* unit){
+	ULONG capacity;
+	struct MyOldUnit *myUnit = (struct MyOldUnit *) unit;
+	switch(myUnit->mdu_drv_type){
+		case ATA_DRV: printf("Type: ATA Harddisk\n");break;
+		case ATAPI_DRV: printf("Type: ATAPI-CD/DVD-ROM\n");break;
+		case UNKNOWN_DRV: printf("Type: Unknownn");break;
+	}
+	printf("Model number: %s.\n",myUnit->mdu_model_num);
+	printf("Firmware revision: %s.\n",myUnit->mdu_firm_rev);
+	printf("Serial: %s.\n",myUnit->mdu_ser_num);
+	if(myUnit->mdu_drv_type==ATA_DRV){
+		switch(	myUnit->mdu_lba){
+			case CHS_ACCESS: 
+				printf("Supports only cylinder-head-sector (CHS) access.\n");
+				break;	
+			case LBA28_ACCESS: 							
+				printf("Supports LBA28 access.\n");
+				printf("Number of blocks %lu\n",myUnit->mdu_numlba);
+				break;
+		}		
+		printf(	"Cylinders: %lu Heads: %lu Sectors: %lu\n",
+				myUnit->mdu_cylinders,
+				myUnit->mdu_heads,
+				myUnit->mdu_sectors_per_track);
+		capacity = myUnit->mdu_cylinders*myUnit->mdu_heads*myUnit->mdu_sectors_per_track; //c*h*s = num of blocs, one block =512Byte 
+		capacity /=2; //blocks (512byte) to kb									
+		capacity /=1024; //to MB
+		//if(capacity >1024){
+		//	capacity /=1024; //to GB
+		//	printf(	"Capacity(GB): %lu\n",capacity);
+		//}
+		//else{
+			printf(	"Capacity(MB): %lu\n",capacity);
+		//}							
+
+	}	
+	if(myUnit->mdu_drv_type==ATAPI_DRV){
+		printf("Disk present: %s\n",(myUnit->mdu_no_disk?"NO":"YES"));
+		printf("Motor status: %d\n",myUnit->mdu_motor);
+		printf("Number of LBA-blocks %lu\n",myUnit->mdu_numlba);					
+	}
+	return myUnit->mdu_drv_type;
+}
+
+
 UWORD GetDriveInfo(char* device, int devicenum, int verbose){
     struct iohandle *harddisk;
     struct MyUnit *myUnit=NULL;
+    struct MyOldUnit *myOldUnit=NULL;
 	UWORD retVal = ATA_DRV;
     char* ref="ide.device";
-	ULONG capacity;
+	
 	//check for IDE.device all others are treated as ATA_DRV
-	if(stricmp(device,ref)==0 && verbose){
+	if(stricmp(device,ref)==0){
 		//OK, ide.device! Lets go checking!	    
-	    //get the memory
+	    //get the handle
 	    harddisk = open_device(device, devicenum);
 	
 		//got the handle?
 	    if(harddisk  ){
-	    	//get a pointer to the unit-info struct
-		    myUnit = (struct MyUnit *) ((struct IOStdReq *)harddisk->hand.req)->io_Unit;
-		    //store return value
-			retVal = myUnit->mdu_drv_type;
-		    if(verbose!=0 ){ //check if verbose is given
-		    	printf("Device %s\tUnit%d:\n",device,devicenum);
-		    	switch(retVal){
-		    		case ATA_DRV: printf("Type: ATA Harddisk\n");break;
-		    		case ATAPI_DRV: printf("Type: ATAPI-CD/DVD-ROM\n");break;
-		    		case UNKNOWN_DRV: printf("Type: Unknownn");break;
-		    		case SATA_DRV: printf("Type: SATA Harddisk\n");break;
-		    		case SATAPI_DRV: printf("Type: SATAPI-CD/DVD-ROM\n");break;
-		    	}
-		    	printf("Model number: %s.\n",myUnit->mdu_model_num);
-		    	printf("Firmware revision: %s.\n",myUnit->mdu_firm_rev);
-		    	printf("Serial: %s.\n",myUnit->mdu_ser_num);
-				if(retVal==ATA_DRV || retVal==SATA_DRV ){
-					switch(	myUnit->mdu_lba){
-						case CHS_ACCESS: 
-							printf("Supports only cylinder-head-sector (CHS) access.\n");
-							break;	
-						case LBA28_ACCESS: 							
-							printf("Supports LBA28 access.\n");
-							printf("Number of blocks %lu\n",myUnit->mdu_numlba);
-							break;
-						case LBA48_ACCESS: 							
-							printf("Supports LBA48 access. (not supported jet!)\n");
-							printf("Number of 48LBA-blocks %lu\n",myUnit->mdu_numlba48);
-							printf("Number of 28LBA-blocks %lu\n",myUnit->mdu_numlba);
-							break;
-					}		
-					printf(	"Cylinders: %lu Heads: %lu Sectors: %lu\n",
-							myUnit->mdu_cylinders,
-							myUnit->mdu_heads,
-							myUnit->mdu_sectors_per_track);
-					capacity = myUnit->mdu_cylinders*myUnit->mdu_heads*myUnit->mdu_sectors_per_track; //c*h*s = num of blocs, one block =512Byte 
-					capacity /=2; //blocks (512byte) to kb									
-					capacity /=1024; //to MB
-					//if(capacity >1024){
-					//	capacity /=1024; //to GB
-					//	printf(	"Capacity(GB): %lu\n",capacity);
-					//}
-					//else{
-						printf(	"Capacity(MB): %lu\n",capacity);
-					//}							
-
-				}	
-				if(retVal==ATAPI_DRV || retVal==SATAPI_DRV ){
-					printf("Disk present: %s\n",(myUnit->mdu_no_disk?"NO":"YES"));
-					printf("Motor status: %d\n",myUnit->mdu_motor);
-					printf("Number of LBA-blocks %lu\n",myUnit->mdu_numlba);					
+	    	//check version
+	    	if(	((struct IOStdReq *)harddisk->hand.req)->io_Device->dd_Library.lib_Version >=2 &&
+	    	 	((struct IOStdReq *)harddisk->hand.req)->io_Device->dd_Library.lib_Revision>17){
+	    		//new device
+		    	//get a pointer to the unit-info struct
+			    myUnit = (struct MyUnit *) ((struct IOStdReq *)harddisk->hand.req)->io_Unit;
+			    //store return value
+				retVal = myUnit->mdu_drv_type;
+			    if(verbose!=0 ){ //check if verbose is given
+			    	
+		    		printf("Device %s\tUnit%d:\n",
+		    				((struct IOStdReq *)harddisk->hand.req)->io_Device->dd_Library.lib_IdString,
+		    				devicenum);
+			    	printDeviceInfo(myUnit);
 				}
-				printf("Max number of sectors per IO (NOT MAX TRAFSFER!): %d\n",myUnit->mdu_SectorBuffer);
+			}
+			else{ //old version
+				myOldUnit = (struct MyOldUnit *) ((struct IOStdReq *)harddisk->hand.req)->io_Unit;
+			    //store return value
+				retVal = myOldUnit->mdu_drv_type;
+			    if(verbose!=0 ){ //check if verbose is given
+		    		printf("Device %s\tUnit%d:\n",
+		    				((struct IOStdReq *)harddisk->hand.req)->io_Device->dd_Library.lib_IdString,
+		    				devicenum);
+			    	printOldDeviceInfo(myOldUnit);
+				}
 			}
 		    close_io(harddisk);
 	    }
@@ -297,10 +370,14 @@ main(int argc, char *argv[])
     //printf("Dev: %s MinU:%d MaxU:%d File:%s step:%d info:%d Test:%d\n",args.device, (*args.minUnit), (*args.maxUnit),args.file,(*args.stepUnit),args.info,args.test);
     
     numOfDevices = ((*args.maxUnit)/(*args.stepUnit)) + 1;
+    if(args.info ){ //check if verbose is given			    	
+	    printf("AddHD version %s\n",VERSION_STRING);
+	}
 
     for(i=(*args.minUnit)/(*args.stepUnit); i<numOfDevices; ++i){
     	unit = i*(*args.stepUnit);
 	    //printf("Dev: %s unit:%d info:%d test:%d\n",args.device, unit, args.info,args.test);
+
     	driveType = GetDriveInfo(args.device,unit,args.info); //this returns the drivetype for ide.device or ATA_DRV for any other device
      	if(driveType==ATA_DRV || driveType==SATA_DRV ){ //add only harddisks. No CDROMS and Unknown   	
 	        driveStatus=AddBootNodes(args.device,unit,args.file,args.test);

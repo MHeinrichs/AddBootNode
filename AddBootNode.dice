@@ -1,7 +1,7 @@
 PROJECT= AddHD
 DIR= 
-SRCS= ide-drive.c AddBootNode.c rdblib.c
-HDRS= atid500.h ata.h ide-drive.h mydev.h AddBootNode.h rdblib.h
+SRCS= AddBootNode.c rdblib.c
+HDRS= mydev.h AddBootNode.h rdblib.h
 EXTRAS= 
 PDEFAULT= 
 EXEDIR= 
