@@ -53,6 +53,59 @@ int writeMountlist(APTR *blocklist, int isKick13, char* device, int devicenum, c
     return 0;
 }
 
+UWORD printDeviceInfo225(APTR *unit){
+	ULONG capacity;
+	struct MyUnit225 *myUnit = (struct MyUnit225 *) unit;
+	switch(myUnit->mdu_drv_type){
+		case ATA_DRV: printf("Type: ATA Harddisk\n");break;
+		case ATAPI_DRV: printf("Type: ATAPI-CD/DVD-ROM\n");break;
+		case UNKNOWN_DRV: printf("Type: Unknownn");break;
+		case SATA_DRV: printf("Type: SATA Harddisk\n");break;
+		case SATAPI_DRV: printf("Type: SATAPI-CD/DVD-ROM\n");break;
+	}
+	printf("Model number: %s.\n",myUnit->mdu_model_num);
+	printf("Firmware revision: %s.\n",myUnit->mdu_firm_rev);
+	printf("Serial: %s.\n",myUnit->mdu_ser_num);
+	if(myUnit->mdu_drv_type==ATA_DRV || myUnit->mdu_drv_type==SATA_DRV ){
+		switch(	myUnit->mdu_lba){
+			case CHS_ACCESS: 
+				printf("Supports only cylinder-head-sector (CHS) access.\n");
+				break;	
+			case LBA28_ACCESS: 							
+				printf("Supports LBA28 access.\n");
+				printf("Number of blocks %lu\n",myUnit->mdu_numlba);
+				break;
+			case LBA48_ACCESS: 							
+				printf("Supports LBA48 access. (not supported jet!)\n");
+				printf("Number of 48LBA-blocks %lu\n",myUnit->mdu_numlba48);
+				printf("Number of 28LBA-blocks %lu\n",myUnit->mdu_numlba);
+				break;
+		}		
+		printf(	"Cylinders: %lu Heads: %lu Sectors: %lu\n",
+				myUnit->mdu_cylinders,
+				myUnit->mdu_heads,
+				myUnit->mdu_sectors_per_track);
+		capacity = myUnit->mdu_cylinders*myUnit->mdu_heads*myUnit->mdu_sectors_per_track; //c*h*s = num of blocs, one block =512Byte 
+		capacity /=2; //blocks (512byte) to kb									
+		capacity /=1024; //to MB
+		//if(capacity >1024){
+		//	capacity /=1024; //to GB
+		//	printf(	"Capacity(GB): %lu\n",capacity);
+		//}
+		//else{
+			printf(	"Capacity(MB): %lu\n",capacity);
+		//}							
+
+	}	
+	if(myUnit->mdu_drv_type==ATAPI_DRV || myUnit->mdu_drv_type==SATAPI_DRV ){
+		printf("Disk present: %s\n",(myUnit->mdu_no_disk?"NO":"YES"));
+		printf("Motor status: %d\n",myUnit->mdu_motor);
+		printf("Number of LBA-blocks %lu\n",myUnit->mdu_numlba);					
+	}
+	printf("Max number of sectors per IO (NOT MAX TRAFSFER!): %d\n",myUnit->mdu_SectorBuffer);
+	return myUnit->mdu_drv_type;
+}
+
 UWORD printDeviceInfo(APTR *unit){
 	ULONG capacity;
 	struct MyUnit *myUnit = (struct MyUnit *) unit;
@@ -154,6 +207,7 @@ UWORD printOldDeviceInfo(APTR* unit){
 
 UWORD GetDriveInfo(char* device, int devicenum, int verbose){
     struct iohandle *harddisk;
+    struct MyUnit225 *myUnit225=NULL;
     struct MyUnit *myUnit=NULL;
     struct MyOldUnit *myOldUnit=NULL;
 	UWORD retVal = ATA_DRV;
@@ -171,17 +225,32 @@ UWORD GetDriveInfo(char* device, int devicenum, int verbose){
 	    	if(	((struct IOStdReq *)harddisk->hand.req)->io_Device->dd_Library.lib_Version >=2 &&
 	    	 	((struct IOStdReq *)harddisk->hand.req)->io_Device->dd_Library.lib_Revision>17){
 	    		//new device
-		    	//get a pointer to the unit-info struct
-			    myUnit = (struct MyUnit *) ((struct IOStdReq *)harddisk->hand.req)->io_Unit;
-			    //store return value
-				retVal = myUnit->mdu_drv_type;
-			    if(verbose!=0 ){ //check if verbose is given
-			    	
-		    		printf("Device %s\tUnit%d:\n",
-		    				((struct IOStdReq *)harddisk->hand.req)->io_Device->dd_Library.lib_IdString,
-		    				devicenum);
-			    	printDeviceInfo(myUnit);
-				}
+	    		if(((struct IOStdReq *)harddisk->hand.req)->io_Device->dd_Library.lib_Revision>23){
+	    			//get a pointer to the unit-info struct
+				    myUnit225 = (struct MyUnit225 *) ((struct IOStdReq *)harddisk->hand.req)->io_Unit;
+				    //store return value
+						retVal = myUnit225->mdu_drv_type;
+				    if(verbose!=0 ){ //check if verbose is given
+				    	
+			    		printf("Device %s\tUnit%d:\n",
+			    				((struct IOStdReq *)harddisk->hand.req)->io_Device->dd_Library.lib_IdString,
+			    				devicenum);
+				    	printDeviceInfo225(myUnit225);
+						}
+	    		}
+	    		else{
+			    	//get a pointer to the unit-info struct
+				    myUnit = (struct MyUnit *) ((struct IOStdReq *)harddisk->hand.req)->io_Unit;
+				    //store return value
+						retVal = myUnit->mdu_drv_type;
+				    if(verbose!=0 ){ //check if verbose is given
+				    	
+			    		printf("Device %s\tUnit%d:\n",
+			    				((struct IOStdReq *)harddisk->hand.req)->io_Device->dd_Library.lib_IdString,
+			    				devicenum);
+				    	printDeviceInfo(myUnit);
+						}
+					}
 			}
 			else{ //old version
 				myOldUnit = (struct MyOldUnit *) ((struct IOStdReq *)harddisk->hand.req)->io_Unit;

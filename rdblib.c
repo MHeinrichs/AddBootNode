@@ -253,7 +253,7 @@ BOOL read_list (struct iohandle *h,APTR *blocklist,long *toblock,long *list_addr
 BOOL read_rdb (struct iohandle *h,APTR *blocklist)
 
 {
-	struct RigidDiskBlock *rdb;
+	struct RigidDiskBlock *rdb = NULL;
 	long fromblock,toblock;
 	BOOL ok = TRUE;
 	//printf("4\n");
@@ -268,6 +268,12 @@ BOOL read_rdb (struct iohandle *h,APTR *blocklist)
 		if (rdb->rdb_ID == IDNAME_RIGIDDISK)
 		break;
 		free_block(rdb);
+		rdb = NULL;
+	}
+
+	if (!rdb)
+	{
+		return (FALSE);
 	}
 
 	if (rdb->rdb_ID != IDNAME_RIGIDDISK)
