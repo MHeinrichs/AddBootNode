@@ -13,7 +13,7 @@
 #include <clib/expansion_protos.h>
 #include "rdblib.h"
 
-#define VERSION_STRING "2.3"
+#define VERSION_STRING "2.4"
 struct Library *ExpansionBase=NULL;
 int writeMountlist(APTR *blocklist, int isKick13, char* device, int devicenum, char* fileName);
 

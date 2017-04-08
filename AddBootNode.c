@@ -102,7 +102,6 @@ UWORD printDeviceInfo230(APTR *unit){
 		printf("Motor status: %d\n",myUnit->mdu_motor);
 		printf("Number of LBA-blocks %lu\n",myUnit->mdu_numlba);					
 	}
-	printf("Max number of sectors per IO (NOT MAX TRAFSFER!): %d\n",myUnit->mdu_SectorBuffer);
 	return myUnit->mdu_drv_type;
 }
 
@@ -511,14 +510,15 @@ main(int argc, char *argv[])
     numOfDevices = ((*args.maxUnit)/(*args.stepUnit)) + 1;
     if(args.info ){ //check if verbose is given			    	
 	    printf("AddHD version %s\n",VERSION_STRING);
+	    args.test=1; //set test too!
 	}
 
     for(i=(*args.minUnit)/(*args.stepUnit); i<numOfDevices; ++i){
     	unit = i*(*args.stepUnit);
 	    //printf("Dev: %s unit:%d info:%d test:%d\n",args.device, unit, args.info,args.test);
-
+			
     	driveType = GetDriveInfo(args.device,unit,args.info); //this returns the drivetype for ide.device or ATA_DRV for any other device
-     	if(driveType==ATA_DRV || driveType==SATA_DRV ){ //add only harddisks. No CDROMS and Unknown   	
+     	if(driveType==ATA_DRV || driveType==SATA_DRV){ //add only harddisks. No CDROMS and Unknown
 	        driveStatus=AddBootNodes(args.device,unit,args.file,args.test);
 	        if(driveStatus<returnCode){
 	            returnCode=driveStatus;

@@ -92,17 +92,8 @@ struct MyUnit225 {
 struct MyUnit230 {
 
    struct   Unit mdu_Unit;
-   UBYTE    mdu_SigBit;
-   UBYTE    mdu_SectorBuffer;	 //max number of sectors per transfer block
-   APTR     mdu_Device;
-   ULONG    mdu_change_cnt;      /*count of disk changes - only for ATAPI*/
-   ULONG    mdu_no_disk;         /*isn't disk inserted? - only for ATAPI*/
-   ULONG    mdu_numlba48;        /*only for ATA with LBA=LBA48_ACCESS*/
-   ULONG    mdu_sectors_per_track;  /*only for ATA*/
-   ULONG    mdu_heads;           /*only for ATA*/
-   ULONG    mdu_cylinders;       /*only for ATA*/
-   ULONG    mdu_numlba;          /*only for ATA with LBA=LBA28_ACCESS or LBA48_ACCESS*/
-   ULONG    mdu_act_Actual;			 /*SCSI-Packet-Stuff*/
+	 UBYTE    mdu_SigBit;
+	 UBYTE    mdu_TimerOpen;	 
    char     mdu_EmulInquiry[36];
    char     mdu_EmulMSPage3[28];
    char     mdu_EmulMSPage4[28];
@@ -112,18 +103,31 @@ struct MyUnit230 {
    char     mdu_firm_rev[12];    /*firware revision*/
    char     mdu_model_num[44];   /*model number*/
    char     mdu_act_cmd[16];      /*actual SCSI-Command (8 words = 16 bytes)*/
-   UWORD    mdu_drv_type;        /*see bellow for possible values*/
-   UWORD    mdu_lba;             /*use LBA? For ATAPI always TRUE*/
-   UWORD    mdu_motor;           /*motor status*/
-   UBYTE    mdu_actSectorCount;	 //actual number of sectors per transfer block
-   UBYTE    mdu_act_Flags;        //actual SCSI-Packet Flags
-   UBYTE    mdu_act_Status;			 //actual SCSI-Status
-   UBYTE    mdu_UnitNum;
-   UBYTE    mdu_firstcall;       /*was drive called yet?*/
-   UBYTE    mdu_auto;            /*get drive parameters automatic? = TRUE*/
-	 ULONG    mdu_ATARdWt;          //Relocation of ATARdWt routine
-	 UBYTE    mdu_stack[MYPROCSTACKSIZE];
-	 struct   Task mdu_tcb; 					//Task Control Block (TCB) for disk task   
+	 APTR     mdu_Device;
+	 APTR     mdu_ATARdWt;
+	 ULONG    mdu_change_cnt;
+	 ULONG    mdu_no_disk;
+	 ULONG    mdu_numlba48;
+	 ULONG    mdu_sectors_per_track;
+	 ULONG    mdu_heads;
+	 ULONG    mdu_cylinders;
+	ULONG    mdu_numlba;
+	ULONG    mdu_act_Actual;
+	UWORD    mdu_drv_type;
+	UWORD    mdu_lba;
+	UWORD    mdu_motor;
+	UBYTE    mdu_actSectorCount;
+	UBYTE    mdu_act_Flags;
+	UBYTE    mdu_act_Status;
+	UBYTE    mdu_UnitNum;
+	UBYTE    mdu_firstcall;
+	UBYTE    mdu_auto;
+	ULONG    mdu_timeout;
+	APTR     mdu_msgport;
+	APTR     mdu_timeinterrupt;
+	APTR     mdu_timerequest;
+  UBYTE    mdu_stack[MYPROCSTACKSIZE];
+	struct   Task mdu_tcb; 					//Task Control Block (TCB) for disk task   
 };
 /*drive types*/
 #define ATA_DRV      0
