@@ -70,31 +70,37 @@ UWORD printDeviceInfo230(APTR *unit){
 		switch(	myUnit->mdu_lba){
 			case CHS_ACCESS: 
 				printf("Supports only cylinder-head-sector (CHS) access.\n");
+				capacity = myUnit->mdu_cylinders*myUnit->mdu_heads*myUnit->mdu_sectors_per_track; //c*h*s = num of blocs, one block =512Byte 
+				capacity /=2; //blocks (512byte) to kb									
+				capacity /=1024; //to MB
+				printf(	"Cylinders: %lu Heads: %lu Sectors: %lu\n",
+					myUnit->mdu_cylinders,
+					myUnit->mdu_heads,
+					myUnit->mdu_sectors_per_track);
 				break;	
 			case LBA28_ACCESS: 							
 				printf("Supports LBA28 access.\n");
 				printf("Number of blocks %lu\n",myUnit->mdu_numlba);
+				capacity = myUnit->mdu_numlba;
+				capacity /=2; //blocks (512byte) to kb									
+				capacity /=1024; //to MB
 				break;
 			case LBA48_ACCESS: 							
-				printf("Supports LBA48 access. (not supported jet!)\n");
+				printf("Supports LBA48 access. (experimental!)\n");
 				printf("Number of 48LBA-blocks %lu\n",myUnit->mdu_numlba48);
-				printf("Number of 28LBA-blocks %lu\n",myUnit->mdu_numlba);
+				//printf("Number of 28LBA-blocks %lu\n",myUnit->mdu_numlba);
+				capacity = myUnit->mdu_numlba;
+				capacity /=2; //blocks (512byte) to kb									
+				capacity /=1024; //to MB
 				break;
 		}		
-		printf(	"Cylinders: %lu Heads: %lu Sectors: %lu\n",
-				myUnit->mdu_cylinders,
-				myUnit->mdu_heads,
-				myUnit->mdu_sectors_per_track);
-		capacity = myUnit->mdu_cylinders*myUnit->mdu_heads*myUnit->mdu_sectors_per_track; //c*h*s = num of blocs, one block =512Byte 
-		capacity /=2; //blocks (512byte) to kb									
-		capacity /=1024; //to MB
-		//if(capacity >1024){
-		//	capacity /=1024; //to GB
-		//	printf(	"Capacity(GB): %lu\n",capacity);
-		//}
-		//else{
-			printf(	"Capacity(MB): %lu\n",capacity);
-		//}							
+		if(capacity >1024){
+			capacity /=1024; //to GB
+			printf(	"Capacity: %luGB\n",capacity);
+		}
+		else{
+			printf(	"Capacity: %luMB\n",capacity);
+		}							
 
 	}	
 	if(myUnit->mdu_drv_type==ATAPI_DRV || myUnit->mdu_drv_type==SATAPI_DRV ){
@@ -429,6 +435,10 @@ int AddBootNodes(char* device, int devicenum, char* outfile, long test){
                                 } else{
                                     rc = AddDosNode( 0, ADNF_STARTPROC, node);
                                 }
+                                		//if(pb->pb_Flags ==PBFF_NOMOUNT){
+                                    //	printf("Partition %s is not automount!\n",name);
+                                    //}
+                                		//if(pb->pb_Flags !=PBFF_NOMOUNT)
                             }
                         }
                         else{
