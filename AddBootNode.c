@@ -45,7 +45,10 @@ int writeMountlist(APTR *blocklist, int isKick13, char* device, int devicenum, c
             fprintf(outfile,"\tMask = 0x%08lx\n", pb->pb_Environment[DE_MASK]);
             fprintf(outfile,"\tBootPri = %lu\n", pb->pb_Environment[DE_BOOTPRI]);
             fprintf(outfile,"\tDosType = 0x%08lx\n", pb->pb_Environment[DE_DOSTYPE]);
-            fprintf(outfile,"\tMount = 1\n");
+						if(pb->pb_Flags !=PBFF_NOMOUNT)
+	            fprintf(outfile,"\tMount = 1\n");
+	          else
+	          	fprintf(outfile,"\tMount = 0\n");
             fprintf(outfile,"#\n\n");
         }
     }
@@ -432,13 +435,13 @@ int AddBootNodes(char* device, int devicenum, char* outfile, long test){
                             else{
                                 if(test){
                                     printf("Found partition %s with start cyl %ld and end cyl %ld\n",name,pb->pb_Environment[DE_LOWCYL],pb->pb_Environment[DE_UPPERCYL]);
+                                		if(pb->pb_Flags ==PBFF_NOMOUNT){
+                                    	printf("Partition %s is not automount!\n",name);
+                                    }
                                 } else{
+                                	if(pb->pb_Flags !=PBFF_NOMOUNT)
                                     rc = AddDosNode( 0, ADNF_STARTPROC, node);
                                 }
-                                		//if(pb->pb_Flags ==PBFF_NOMOUNT){
-                                    //	printf("Partition %s is not automount!\n",name);
-                                    //}
-                                		//if(pb->pb_Flags !=PBFF_NOMOUNT)
                             }
                         }
                         else{
