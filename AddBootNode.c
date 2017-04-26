@@ -57,7 +57,7 @@ int writeMountlist(APTR *blocklist, int isKick13, char* device, int devicenum, c
 }
 
 UWORD printDeviceInfo230(APTR *unit){
-	ULONG capacity;
+	ULONG capacity, capacity2, capacity3;
 	struct MyUnit230 *myUnit = (struct MyUnit230 *) unit;
 	switch(myUnit->mdu_drv_type){
 		case ATA_DRV: printf("Type: ATA Harddisk\n");break;
@@ -98,8 +98,9 @@ UWORD printDeviceInfo230(APTR *unit){
 				break;
 		}		
 		if(capacity >1024){
-			capacity /=1024; //to GB
-			printf(	"Capacity: %luGB\n",capacity);
+			capacity2 =capacity/1024; //to GB			                                 
+			capacity3 =capacity%1024; //to GB
+			printf(	"Capacity: %lu.%0luGB\n",capacity2,capacity3);
 		}
 		else{
 			printf(	"Capacity: %luMB\n",capacity);
@@ -107,7 +108,7 @@ UWORD printDeviceInfo230(APTR *unit){
 
 	}	
 	if(myUnit->mdu_drv_type==ATAPI_DRV || myUnit->mdu_drv_type==SATAPI_DRV ){
-		printf("Disk present: %s\n",(myUnit->mdu_no_disk?"NO":"YES"));
+		printf("Disk present: %s\n",(myUnit->mdu_no_disk==0?"YES":"NO"));
 		printf("Motor status: %d\n",myUnit->mdu_motor);
 		printf("Number of LBA-blocks %lu\n",myUnit->mdu_numlba);					
 	}
