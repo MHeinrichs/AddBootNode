@@ -355,7 +355,7 @@ UWORD GetDriveInfo(char* device, int devicenum, int verbose){
 	return retVal;
 }
 
-int AddBootNodes(char* device, int devicenum, char* outfile, long test){
+int AddBootNodes(char* device, int devicenum, char* outfile, long test, long force){
     long rc =0, numPartAdded=0;
     long i,j;
     BOOL isKick13;
@@ -440,7 +440,7 @@ int AddBootNodes(char* device, int devicenum, char* outfile, long test){
                                     	printf("Partition %s is not automount!\n",name);
                                     }
                                 } else{
-                                	if(pb->pb_Flags !=PBFF_NOMOUNT)
+                                	if(pb->pb_Flags !=PBFF_NOMOUNT || force)
                                     rc = AddDosNode( 0, ADNF_STARTPROC, node);
                                 }
                             }
@@ -493,6 +493,7 @@ main(int argc, char *argv[])
         long *stepUnit;
         long info;
         long test;
+        long force;
     } args = {
         0
     };
@@ -509,7 +510,7 @@ main(int argc, char *argv[])
     args.stepUnit=&step;
 
     if(!isKick13()){
-        rdargs = ReadArgs ("DEVICE/K,MINUNIT/K/N,MAXUNIT/K/N,FILE/K,STEP/K/N,DRIVEINFO/S,TEST/S",(void *)&args,NULL);
+        rdargs = ReadArgs ("DEVICE/K,MINUNIT/K/N,MAXUNIT/K/N,FILE/K,STEP/K/N,DRIVEINFO/S,TEST/S,FORCE/S",(void *)&args,NULL);
     }
     else{
         printf("Kick 1.3 mode! No command line parameters are evaluated except the first.\n First parameter is a file to save the mountlist.\n");
@@ -525,7 +526,7 @@ main(int argc, char *argv[])
     if(args.info ){ //check if verbose is given			    	
 	    printf("AddHD version %s\n",VERSION_STRING);
 	    args.test=1; //set test too!
-	}
+	  }
 
     for(i=(*args.minUnit)/(*args.stepUnit); i<numOfDevices; ++i){
     	unit = i*(*args.stepUnit);
@@ -533,7 +534,7 @@ main(int argc, char *argv[])
 			
     	driveType = GetDriveInfo(args.device,unit,args.info); //this returns the drivetype for ide.device or ATA_DRV for any other device
      	if(driveType==ATA_DRV || driveType==SATA_DRV){ //add only harddisks. No CDROMS and Unknown
-	        driveStatus=AddBootNodes(args.device,unit,args.file,args.test);
+	        driveStatus=AddBootNodes(args.device,unit,args.file,args.test,args.force);
 	        if(driveStatus<returnCode){
 	            returnCode=driveStatus;
 	        }

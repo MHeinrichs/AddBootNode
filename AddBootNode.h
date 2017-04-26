@@ -17,7 +17,7 @@
 struct Library *ExpansionBase=NULL;
 int writeMountlist(APTR *blocklist, int isKick13, char* device, int devicenum, char* fileName);
 
-int AddBootNodes(char* device, int device, char* outfile, long test);
+int AddBootNodes(char* device, int device, char* outfile, long test, long force);
 UWORD printDeviceInfo(APTR* unit);
 UWORD printOldDeviceInfo(APTR* unit);
 UWORD GetDriveInfo(char* device, int devicenum, int verbose);
